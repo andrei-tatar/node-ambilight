@@ -1,0 +1,28 @@
+svg {
+  position: absolute;
+  overflow: visible;
+  left: 0;
+  top: 0;
+}
+
+circle {
+  cursor: pointer;
+  r: 7;
+  fill: lightblue;
+  transition: r .2s, fill .2s;
+
+  &.q {
+    fill: salmon;
+  }
+
+  &.dragging,
+  &:hover {
+    r: 15;
+  }
+}
+
+path {
+  stroke: greenyellow;
+  stroke-width: 2;
+  fill: transparent;
+}

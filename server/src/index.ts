@@ -2,7 +2,7 @@ import cv from 'opencv4nodejs';
 import express from 'express';
 import bodyParser from 'body-parser';
 
-import { Observable, OperatorFunction } from 'rxjs';
+import { Observable, OperatorFunction, ReplaySubject } from 'rxjs';
 import { bufferTime, map, publishReplay, refCount, first, switchMap } from 'rxjs/operators';
 
 function getCaptureDevice(devicePort = 0): Observable<cv.VideoCapture> {
@@ -49,12 +49,11 @@ const frames$ = getCaptureDevice()
         refCount()
     );
 
-const subscription = frames$
-    .pipe(
-        bufferTime(5000),
-        map(frames => frames.length),
-    )
-    .subscribe(fps => console.log(`FPS ${fps / 5}`));
+const fps$ = new ReplaySubject<number>(1)
+frames$.pipe(
+    bufferTime(5000),
+    map(frames => frames.length / 5),
+).subscribe(fps$);
 
 const app = express();
 let coordinates = {
@@ -68,6 +67,10 @@ let coordinates = {
     qRight: { x: 75, y: 50 },
 };
 app.use(bodyParser.json());
+app.get('/fps', async (_req, res) => {
+    const fps = await fps$.pipe(first()).toPromise();
+    res.json(fps);
+});
 app.get('/frame', async (_req, res) => {
     const frame = await frames$.pipe(first()).toPromise();
     const buffer = await cv.imencodeAsync('.png', frame);
@@ -93,5 +96,5 @@ const server = app.listen(3000);
 
 process.on('SIGINT', () => {
     server.close();
-    subscription.unsubscribe();
+    fps$.unsubscribe();
 });

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Subject, BehaviorSubject, combineLatest } from 'rxjs';
-import { shareReplay, map, first, switchMap, retry, tap } from 'rxjs/operators';
+import { Subject, BehaviorSubject, combineLatest, interval } from 'rxjs';
+import { shareReplay, map, first, switchMap, startWith } from 'rxjs/operators';
 
 @Injectable()
 export class ApiService {
@@ -27,6 +27,11 @@ export class ApiService {
 
     size$ = this.settings$.pipe(
         map(settings => settings.size),
+    );
+
+    fps$ = interval(5000).pipe(
+        startWith(0),
+        switchMap(_ => this.http.get<number>('api/fps')),
     );
 
     constructor(private http: HttpClient) {

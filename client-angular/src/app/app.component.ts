@@ -11,6 +11,7 @@ export class AppComponent implements OnInit {
 
   coordinates$ = this.service.coordinates$;
   size$ = this.service.size$;
+  fps$ = this.service.fps$;
 
   constructor(private service: ApiService) {
   }

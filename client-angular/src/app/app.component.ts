@@ -17,4 +17,8 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
   }
+
+  save() {
+    this.service.save().toPromise();
+  }
 }

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Subject, BehaviorSubject } from 'rxjs';
-import { shareReplay, map } from 'rxjs/operators';
+import { Subject, BehaviorSubject, combineLatest } from 'rxjs';
+import { shareReplay, map, first, switchMap, retry, tap } from 'rxjs/operators';
 
 @Injectable()
 export class ApiService {
@@ -30,6 +30,34 @@ export class ApiService {
     );
 
     constructor(private http: HttpClient) {
+    }
+
+    save() {
+        return combineLatest([this.coordinates$, this.size$]).pipe(
+            first(),
+            switchMap(([coords, size]) => {
+                const entries = Object.entries(coords);
+                const keys = entries.map(e => e[0]);
+                const observables = entries.map(e => e[1]);
+                return combineLatest(observables)
+                    .pipe(
+                        first(),
+                        map(values => {
+                            const coordinates: Settings['coordinates'] = {} as any;
+                            for (const [index, key] of keys.entries()) {
+                                const typedKey: keyof Settings['coordinates'] = key as any;
+                                const value = values[index];
+                                coordinates[typedKey] = {
+                                    x: value.x / size.width * 100,
+                                    y: value.y / size.height * 100,
+                                };
+                            }
+                            return coordinates;
+                        })
+                    );
+            }),
+            switchMap(coordinates => this.http.patch('api/settings/coordinates', coordinates)),
+        );
     }
 }
 

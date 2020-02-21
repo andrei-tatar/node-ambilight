@@ -8,14 +8,11 @@ import { bufferTime, map, publishReplay, refCount, first, switchMap } from 'rxjs
 function getCaptureDevice(devicePort = 0): Observable<cv.VideoCapture> {
     return new Observable<cv.VideoCapture>(observer => {
         const capture = new cv.VideoCapture(devicePort);
-        observer.next(capture);
 
-        // capture.set(cv.CAP_PROP_SATURATION, .3);
-        // capture.set(cv.CAP_PROP_BRIGHTNESS, .3);
-        // capture.set(cv.CAP_PROP_CONTRAST, .3);
-        // capture.set(cv.CAP_PROP_GAIN, .3);
-        // capture.set(cv.CAP_PROP_EXPOSURE, .3);
-        // capture.set(cv.CAP_PROP_AUTO_EXPOSURE, .3);
+        capture.set(cv.CAP_PROP_FRAME_WIDTH, 160);
+        capture.set(cv.CAP_PROP_FRAME_HEIGHT, 120);
+        capture.set(cv.CAP_PROP_FPS, 30);
+        observer.next(capture);
 
         return () => capture.release();
     });

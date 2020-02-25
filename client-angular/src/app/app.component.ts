@@ -29,7 +29,7 @@ export class AppComponent implements OnInit {
   }
 
   async calibrate() {
-    const samples = 20;
+    const samples = 40;
     const blacks: number[][] = [];
     const whites: number[][] = [];
 
@@ -37,21 +37,21 @@ export class AppComponent implements OnInit {
     this.color = 'black';
 
 
-    await this.delay(1000);
+    await this.delay(2000);
     for (let i = 0; i < samples; i++) {
       const sample = await this.service.deviceSamples().toPromise();
       blacks.push(sample);
-      await this.delay(100);
+      await this.delay(50);
     }
 
     this.color = 'white';
     this.cdr.markForCheck();
-    await this.delay(1000);
+    await this.delay(2000);
 
     for (let i = 0; i < samples; i++) {
       const sample = await this.service.deviceSamples().toPromise();
       whites.push(sample);
-      await this.delay(100);
+      await this.delay(50);
     }
 
     this.calibrating = false
@@ -60,10 +60,11 @@ export class AppComponent implements OnInit {
     const sampleSize = blacks[0].length;
     const correctionFactors = [];
     for (let i = 0; i < sampleSize; i++) {
-      const black = blacks.reduce((l, sample) => Math.max(l, sample[i]), 0);
-      const white = whites.reduce((l, sample) => Math.min(l, sample[i]), 255);
+      const black = blacks.reduce((l, sample) => l + sample[i], 0) / samples;
+      const white = whites.reduce((l, sample) => l + sample[i], 0) / samples;
+      const range = Math.max(1, white - black);
       correctionFactors.push({
-        a: 255 / (white - black),
+        a: 255 / range,
         b: -black,
       });
     }

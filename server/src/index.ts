@@ -117,16 +117,8 @@ app.get('/frame', async (_req, res) => {
 });
 app.get('/samples', async (_req, res) => {
     const samples = await sampleData$.pipe(first()).toPromise();
-    const clone = samples.slice(0);
-    const result = [];
-    for (let i = 0; i < clone.length / 3; i++) {
-        result.push({
-            r: samples[i * 3 + 0],
-            g: samples[i * 3 + 1],
-            b: samples[i * 3 + 2],
-        });
-    }
-    res.json(result);
+    const array = Array.from(samples);
+    res.json(array);
 });
 app.get('/settings', async (_req, res) => {
     const config = await config$.pipe(first()).toPromise();

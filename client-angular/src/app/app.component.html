@@ -20,4 +20,7 @@
   </div>
 
   <button (click)="save()">Save</button>
+  <button (click)="calibrate()">Calibrate</button>
 </div>
+
+<div *ngIf="calibrating" [style.background-color]="color" class="calibration-canvas"></div>

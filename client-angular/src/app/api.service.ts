@@ -32,6 +32,16 @@ export class ApiService {
     constructor(private http: HttpClient) {
     }
 
+    deviceSamples() {
+        return this.http.get<number[]>('api/samples');
+    }
+
+    updateCorrection(correction: { a: number, b: number }[]) {
+        return this.http.patch('api/settings', {
+            correction,
+        });
+    }
+
     save() {
         return combineLatest([this.coordinates$, this.settings$]).pipe(
             first(),
@@ -69,10 +79,14 @@ export class ApiService {
     private getSamplePoints(coordinates: Settings['coordinates'], resolution: { horizontal: number, vertical: number }) {
         const samplePoints: Point[] = [];
 
-        samplePoints.push(...this.getPathPoints(coordinates.topLeft, coordinates.topRight, coordinates.qTop, resolution.horizontal));
-        samplePoints.push(...this.getPathPoints(coordinates.topRight, coordinates.bottomRight, coordinates.qRight, resolution.vertical));
-        samplePoints.push(...this.getPathPoints(coordinates.bottomRight, coordinates.bottomLeft, coordinates.qBottom, resolution.horizontal));
-        samplePoints.push(...this.getPathPoints(coordinates.bottomLeft, coordinates.topLeft, coordinates.qLeft, resolution.vertical));
+        samplePoints.push(...this.getPathPoints(
+            coordinates.topLeft, coordinates.topRight, coordinates.qTop, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(
+            coordinates.topRight, coordinates.bottomRight, coordinates.qRight, resolution.vertical));
+        samplePoints.push(...this.getPathPoints(
+            coordinates.bottomRight, coordinates.bottomLeft, coordinates.qBottom, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(
+            coordinates.bottomLeft, coordinates.topLeft, coordinates.qLeft, resolution.vertical));
 
         return samplePoints;
     }

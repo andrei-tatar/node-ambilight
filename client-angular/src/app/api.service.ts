@@ -16,8 +16,8 @@ export class ApiService {
             for (const [key, value] of Object.entries(settings.coordinates)) {
                 const typedKey: keyof Settings['coordinates'] = key as any;
                 subjects[typedKey] = new BehaviorSubject<Point>({
-                    x: value.x / 100 * settings.size.width,
-                    y: value.y / 100 * settings.size.height,
+                    x: value.x / 100 * settings.capture.size.width,
+                    y: value.y / 100 * settings.capture.size.height,
                 });
             }
             return subjects;
@@ -26,21 +26,16 @@ export class ApiService {
     );
 
     size$ = this.settings$.pipe(
-        map(settings => settings.size),
-    );
-
-    fps$ = interval(5000).pipe(
-        startWith(0),
-        switchMap(_ => this.http.get<number>('api/fps')),
+        map(settings => settings.capture.size),
     );
 
     constructor(private http: HttpClient) {
     }
 
     save() {
-        return combineLatest([this.coordinates$, this.size$]).pipe(
+        return combineLatest([this.coordinates$, this.settings$]).pipe(
             first(),
-            switchMap(([coords, size]) => {
+            switchMap(([coords, { capture: { size }, resolution }]) => {
                 const entries = Object.entries(coords);
                 const keys = entries.map(e => e[0]);
                 const observables = entries.map(e => e[1]);
@@ -57,12 +52,44 @@ export class ApiService {
                                     y: value.y / size.height * 100,
                                 };
                             }
-                            return coordinates;
+
+                            const patch: Partial<Settings> = {
+                                coordinates,
+                                samplePoints: this.getSamplePoints(coordinates, resolution),
+                            };
+
+                            return patch;
                         })
                     );
             }),
-            switchMap(coordinates => this.http.patch('api/settings/coordinates', coordinates)),
+            switchMap(coordinates => this.http.patch('api/settings', coordinates)),
         );
+    }
+
+    private getSamplePoints(coordinates: Settings['coordinates'], resolution: { horizontal: number, vertical: number }) {
+        const samplePoints: Point[] = [];
+
+        samplePoints.push(...this.getPathPoints(coordinates.topLeft, coordinates.topRight, coordinates.qTop, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(coordinates.topRight, coordinates.bottomRight, coordinates.qRight, resolution.vertical));
+        samplePoints.push(...this.getPathPoints(coordinates.bottomRight, coordinates.bottomLeft, coordinates.qBottom, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(coordinates.bottomLeft, coordinates.topLeft, coordinates.qLeft, resolution.vertical));
+
+        return samplePoints;
+    }
+
+    private getPathPoints(from: Point, to: Point, q: Point, resolution: number) {
+        const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${from.x} ${from.y} Q ${q.x} ${q.y}, ${to.x} ${to.y}`)
+        const length = path.getTotalLength();
+        const points: Point[] = [];
+        for (let i = 0; i < resolution; i++) {
+            const point = path.getPointAtLength(i / (resolution - 1) * length);
+            points.push({
+                x: point.x,
+                y: point.y,
+            });
+        }
+        return points;
     }
 }
 
@@ -70,8 +97,17 @@ type SubjectProperties<T> = {
     [P in keyof T]: Subject<T[P]>;
 };
 
-interface Settings {
-    size: Size;
+export interface Settings {
+    capture: {
+        size: Size;
+        fps: number;
+        device?: number | string;
+    };
+    resolution: {
+        horizontal: number;
+        vertical: number;
+    };
+    samplePoints: Point[];
     coordinates: {
         topLeft: Point,
         topRight: Point,

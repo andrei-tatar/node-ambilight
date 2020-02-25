@@ -1,5 +1,4 @@
 <div style="display:flex; flex-direction:column; align-items:center">
-  <h4>FPS: {{fps$|async}}</h4>
   <div style="position: relative;">
     <img src="api/frame">
     <svg *ngIf="size$|async as size" [style.width.px]="size.width" [style.height.px]="size.height">

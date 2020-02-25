@@ -1,21 +1,30 @@
-import cv from 'opencv4nodejs';
+import cv, { Vec3 } from 'opencv4nodejs';
 import express from 'express';
 import bodyParser from 'body-parser';
+import { isEqual } from 'lodash';
+import WebSocket from 'ws';
 
-import { Observable, OperatorFunction, ReplaySubject } from 'rxjs';
-import { bufferTime, map, publishReplay, refCount, first, switchMap } from 'rxjs/operators';
+import { Observable, OperatorFunction, combineLatest } from 'rxjs';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, sample, withLatestFrom } from 'rxjs/operators';
+import { config$, updateConfig } from './config';
 
-function getCaptureDevice(devicePort = 0): Observable<cv.VideoCapture> {
-    return new Observable<cv.VideoCapture>(observer => {
-        const capture = new cv.VideoCapture(devicePort);
+function getCaptureDevice(): Observable<cv.VideoCapture> {
+    return config$.pipe(
+        map(({ capture: { size, fps, device } }) => ({ size, fps, device })),
+        distinctUntilChanged((a, b) => isEqual(a, b)),
+        switchMap(({ size, fps, device }) => new Observable<cv.VideoCapture>(observer => {
+            const capture = typeof device === 'string' ?
+                new cv.VideoCapture(device) :
+                new cv.VideoCapture(device ?? 0);
 
-        capture.set(cv.CAP_PROP_FRAME_WIDTH, 160);
-        capture.set(cv.CAP_PROP_FRAME_HEIGHT, 120);
-        capture.set(cv.CAP_PROP_FPS, 30);
-        observer.next(capture);
+            capture.set(cv.CAP_PROP_FRAME_WIDTH, size.width);
+            capture.set(cv.CAP_PROP_FRAME_HEIGHT, size.height);
+            capture.set(cv.CAP_PROP_FPS, fps);
+            observer.next(capture);
 
-        return () => capture.release();
-    });
+            return () => capture.release();
+        })),
+    );
 }
 
 function getFrames(): OperatorFunction<cv.VideoCapture, cv.Mat> {
@@ -46,45 +55,53 @@ const frames$ = getCaptureDevice()
         refCount()
     );
 
-const fps$ = new ReplaySubject<number>(1)
-frames$.pipe(
-    bufferTime(5000),
-    map(frames => frames.length / 5),
-).subscribe(fps$);
+const info = config$.pipe(
+    map(({ samplePoints, capture: { size } }) => ({ samplePoints, size })),
+    distinctUntilChanged((a, b) => isEqual(a, b)),
+    map(({ samplePoints, size }) => ({ samplePoints, size, buffer: new Uint8Array(samplePoints.length * 3) }))
+);
+
+const ws$ = new Observable<WebSocket>(observer => {
+    const ws = new WebSocket('ws://192.168.1.54:81/');
+    ws.on('open', () => observer.next(ws));
+    ws.on('error', err => observer.error(err));
+    ws.on('close', () => observer.complete());
+    return () => ws.close();
+});
+
+const subscription = combineLatest([frames$, info])
+    .pipe(
+        map(([frame, { samplePoints, size: { width, height }, buffer }]) => {
+            for (let i = 0; i < samplePoints.length; i++) {
+                const point = samplePoints[i];
+                const x = Math.round(point.x / 100 * width);
+                const y = Math.round(point.y / 100 * height);
+                const color: Vec3 = frame.at(y, x) as any;
+                buffer[i * 3 + 0] = color.x * 255;
+                buffer[i * 3 + 1] = color.y * 255;
+                buffer[i * 3 + 2] = color.z * 255;
+            }
+            return buffer;
+        }),
+        withLatestFrom(ws$),
+        switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {
+            if (err) reject(err); else resolve();
+        }))),
+    ).subscribe();
 
 const app = express();
-let coordinates = {
-    topLeft: { x: 25, y: 25 },
-    topRight: { x: 75, y: 25 },
-    bottomLeft: { x: 25, y: 75 },
-    bottomRight: { x: 75, y: 75 },
-    qTop: { x: 50, y: 25 },
-    qLeft: { x: 25, y: 50 },
-    qBottom: { x: 50, y: 75 },
-    qRight: { x: 75, y: 50 },
-};
 app.use(bodyParser.json());
-app.get('/fps', async (_req, res) => {
-    const fps = await fps$.pipe(first()).toPromise();
-    res.json(fps);
-});
 app.get('/frame', async (_req, res) => {
     const frame = await frames$.pipe(first()).toPromise();
     const buffer = await cv.imencodeAsync('.png', frame);
     res.type('png').end(buffer);
 });
 app.get('/settings', async (_req, res) => {
-    const frame = await frames$.pipe(first()).toPromise();
-    res.json({
-        size: {
-            width: frame.sizes[1],
-            height: frame.sizes[0],
-        },
-        coordinates,
-    });
+    const config = await config$.pipe(first()).toPromise();
+    res.json(config);
 });
-app.patch('/settings/coordinates', async (req, res) => {
-    coordinates = req.body;
+app.patch('/settings', async (req, res) => {
+    await updateConfig(cfg => ({ ...cfg, ...req.body }));
     res.status(204).send();
 });
 app.use(express.static('./src/client'));
@@ -92,6 +109,6 @@ app.use(express.static('./src/client'));
 const server = app.listen(3000);
 
 process.on('SIGINT', () => {
+    subscription.unsubscribe();
     server.close();
-    fps$.unsubscribe();
 });

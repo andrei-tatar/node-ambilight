@@ -1,4 +1,4 @@
-import cv, { Vec3 } from 'opencv4nodejs';
+import cv, { Vec3, Vec } from 'opencv4nodejs';
 import express from 'express';
 import bodyParser from 'body-parser';
 import { isEqual } from 'lodash';
@@ -79,20 +79,11 @@ const sampleData$ = combineLatest([frames$, info])
     .pipe(
         map(([frame, { samplePoints, buffer }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
-                const { x, y } = samplePoints[i];
-
-                let xx = 0, yy = 0, zz = 0;
-                for (let dx = -1; dx <= 1; dx++)
-                    for (let dy = -1; dy <= 1; dy++) {
-                        const color: Vec3 = frame.at(y + dy, x + dx) as any;
-                        xx += color.x;
-                        yy += color.y;
-                        zz += color.z;
-                    }
-
-                buffer[i * 3 + 0] = zz / 3;
-                buffer[i * 3 + 1] = yy / 3;
-                buffer[i * 3 + 2] = xx / 3;
+                const { x: px, y: py } = samplePoints[i];
+                const { x, y, z } = frame.at(py, px) as any as Vec3;
+                buffer[i * 3 + 0] = z;
+                buffer[i * 3 + 1] = y;
+                buffer[i * 3 + 2] = x;
             }
             return buffer;
         }),

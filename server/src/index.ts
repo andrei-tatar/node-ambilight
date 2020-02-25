@@ -115,6 +115,16 @@ const subscription = combineLatest([sampleData$, correction$])
             }
             return data;
         }),
+        scan((acc, frame) => {
+            if (acc?.length != frame.length) {
+                acc = frame.slice();
+            } else {
+                for (let i = 0; i < frame.length; i++) {
+                    acc[i] = acc[i] * 0.4 + frame[i] * 0.6;
+                }
+            }
+            return acc;
+        }, null as Uint8Array | null),
         withLatestFrom(ws$),
         switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {
             if (err) reject(err); else resolve();

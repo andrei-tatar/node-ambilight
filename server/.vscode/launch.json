@@ -17,7 +17,7 @@
                 "ts-node/register"
             ],
             "sourceMaps": true,
-            "cwd": "${workspaceRoot}\\server",
+            "cwd": "${workspaceRoot}",
             "args": [
                 "src\\index.ts"
             ],

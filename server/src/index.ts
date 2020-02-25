@@ -5,7 +5,7 @@ import { isEqual } from 'lodash';
 import WebSocket from 'ws';
 
 import { Observable, OperatorFunction, combineLatest } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan } from 'rxjs/operators';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan, tap } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -56,9 +56,9 @@ const frames$ = getCaptureDevice()
     );
 
 const info = config$.pipe(
-    map(({ samplePoints, capture: { size }, correction }) => ({ samplePoints, size, correction })),
+    map(({ samplePoints, capture: { size } }) => ({ samplePoints, size })),
     distinctUntilChanged((a, b) => isEqual(a, b)),
-    map(({ samplePoints, size, correction }) => ({ samplePoints, size, correction, buffer: new Uint8Array(samplePoints.length * 3) }))
+    map(({ samplePoints, size }) => ({ samplePoints, size, buffer: new Uint8Array(samplePoints.length * 3) }))
 );
 
 const ws$ = new Observable<WebSocket>(observer => {
@@ -71,7 +71,7 @@ const ws$ = new Observable<WebSocket>(observer => {
 
 const sampleData$ = combineLatest([frames$, info])
     .pipe(
-        map(([frame, { samplePoints, size: { width, height }, buffer, correction }]) => {
+        map(([frame, { samplePoints, size: { width, height }, buffer }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
                 const point = samplePoints[i];
                 const x = Math.round(point.x / 100 * width);
@@ -80,11 +80,6 @@ const sampleData$ = combineLatest([frames$, info])
                 buffer[i * 3 + 0] = color.z;
                 buffer[i * 3 + 1] = color.y;
                 buffer[i * 3 + 2] = color.x;
-            }
-            if (correction?.length === buffer.length) {
-                for (let i = 0; i < correction.length; i++) {
-                    applyCorrection(buffer, i, correction[i]);
-                }
             }
             return buffer;
         }),
@@ -100,20 +95,20 @@ function applyCorrection(arr: Uint8Array, offset: number, correction: { a: numbe
     arr[offset] = value;
 }
 
-const subscription = sampleData$
+const correction$ = config$.pipe(
+    map(c => c.correction),
+    distinctUntilChanged((a, b) => isEqual(a, b)),
+);
+
+const subscription = combineLatest([sampleData$, correction$])
     .pipe(
-        scan((last, buf) => {
-            if (last == null || last.length != buf.length) {
-                last = new Uint8Array(buf.length);
-                for (let i = 0; i < buf.length; i++) {
-                    last[i] = buf[i];
-                }
-            } else {
-                for (let i = 0; i < buf.length; i++) {
-                    last[i] = (last[i] + buf[i]) / 2;
+        map(([data, correction]) => {
+            if (correction?.length === data.length) {
+                for (let i = 0; i < correction.length; i++) {
+                    applyCorrection(data, i, correction[i]);
                 }
             }
-            return last;
+            return data;
         }),
         withLatestFrom(ws$),
         switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {

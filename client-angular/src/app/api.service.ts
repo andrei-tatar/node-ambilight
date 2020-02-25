@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Subject, BehaviorSubject, combineLatest, interval } from 'rxjs';
-import { shareReplay, map, first, switchMap, startWith } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest } from 'rxjs';
+import { shareReplay, map, first, switchMap } from 'rxjs/operators';
 
 @Injectable()
 export class ApiService {
@@ -12,13 +12,18 @@ export class ApiService {
 
     coordinates$ = this.settings$.pipe(
         map(settings => {
-            const subjects: SubjectProperties<Settings['coordinates']> = {} as any;
-            for (const [key, value] of Object.entries(settings.coordinates)) {
-                const typedKey: keyof Settings['coordinates'] = key as any;
-                subjects[typedKey] = new BehaviorSubject<Point>({
-                    x: value.x / 100 * settings.capture.size.width,
-                    y: value.y / 100 * settings.capture.size.height,
-                });
+            const subjects: WatchLine<Lines> = {} as any;
+            for (const [key, line] of Object.entries(settings.coordinates)) {
+                const lineName: keyof Lines = key as any;
+                subjects[lineName] = {} as any;
+
+                for (const [pointName, point] of Object.entries(line)) {
+                    const pointKey: keyof Line = pointName as any;
+                    subjects[lineName][pointKey] = new BehaviorSubject<Point>({
+                        x: point.x / 100 * settings.capture.size.width,
+                        y: point.y / 100 * settings.capture.size.height,
+                    });
+                }
             }
             return subjects;
         }),
@@ -45,53 +50,45 @@ export class ApiService {
     save() {
         return combineLatest([this.coordinates$, this.settings$]).pipe(
             first(),
-            switchMap(([coords, { capture: { size }, resolution }]) => {
-                const entries = Object.entries(coords);
-                const keys = entries.map(e => e[0]);
-                const observables = entries.map(e => e[1]);
-                return combineLatest(observables)
-                    .pipe(
-                        first(),
-                        map(values => {
-                            const coordinates: Settings['coordinates'] = {} as any;
-                            for (const [index, key] of keys.entries()) {
-                                const typedKey: keyof Settings['coordinates'] = key as any;
-                                const value = values[index];
-                                coordinates[typedKey] = {
-                                    x: value.x / size.width * 100,
-                                    y: value.y / size.height * 100,
-                                };
-                            }
+            map(([coords, { capture: { size }, resolution }]) => {
+                const coordinates: Lines = {} as any;
+                for (const [key, value] of Object.entries(coords)) {
+                    coordinates[key as any as keyof Lines] = {
+                        from: this.convertPoint(value.from.value, size),
+                        to: this.convertPoint(value.to.value, size),
+                        q: this.convertPoint(value.q.value, size),
+                    }
+                }
+                const patch: Partial<Settings> = {
+                    coordinates,
+                    samplePoints: this.getSamplePoints(coordinates, resolution),
+                };
 
-                            const patch: Partial<Settings> = {
-                                coordinates,
-                                samplePoints: this.getSamplePoints(coordinates, resolution),
-                            };
-
-                            return patch;
-                        })
-                    );
+                return patch;
             }),
             switchMap(coordinates => this.http.patch('api/settings', coordinates)),
         );
     }
 
-    private getSamplePoints(coordinates: Settings['coordinates'], resolution: { horizontal: number, vertical: number }) {
+    private convertPoint(x: Point, size: Size): Point {
+        return {
+            x: x.x / size.width * 100,
+            y: x.y / size.height * 100,
+        };
+    }
+
+    private getSamplePoints(coordinates: Lines, resolution: { horizontal: number, vertical: number }) {
         const samplePoints: Point[] = [];
 
-        samplePoints.push(...this.getPathPoints(
-            coordinates.topLeft, coordinates.topRight, coordinates.qTop, resolution.horizontal));
-        samplePoints.push(...this.getPathPoints(
-            coordinates.topRight, coordinates.bottomRight, coordinates.qRight, resolution.vertical));
-        samplePoints.push(...this.getPathPoints(
-            coordinates.bottomRight, coordinates.bottomLeft, coordinates.qBottom, resolution.horizontal));
-        samplePoints.push(...this.getPathPoints(
-            coordinates.bottomLeft, coordinates.topLeft, coordinates.qLeft, resolution.vertical));
+        samplePoints.push(...this.getPathPoints(coordinates.top, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(coordinates.right, resolution.vertical));
+        samplePoints.push(...this.getPathPoints(coordinates.bottom, resolution.horizontal));
+        samplePoints.push(...this.getPathPoints(coordinates.left, resolution.vertical));
 
         return samplePoints;
     }
 
-    private getPathPoints(from: Point, to: Point, q: Point, resolution: number) {
+    private getPathPoints({ from, to, q }: Line, resolution: number) {
         const path: SVGPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M ${from.x} ${from.y} Q ${q.x} ${q.y}, ${to.x} ${to.y}`)
         const length = path.getTotalLength();
@@ -107,8 +104,12 @@ export class ApiService {
     }
 }
 
+type WatchLine<T> = {
+    [P in keyof T]: SubjectProperties<T[P]>;
+}
+
 type SubjectProperties<T> = {
-    [P in keyof T]: Subject<T[P]>;
+    [P in keyof T]: BehaviorSubject<T[P]>;
 };
 
 export interface Settings {
@@ -122,22 +123,30 @@ export interface Settings {
         vertical: number;
     };
     samplePoints: Point[];
-    coordinates: {
-        topLeft: Point,
-        topRight: Point,
-        bottomLeft: Point,
-        bottomRight: Point,
-        qTop: Point,
-        qLeft: Point,
-        qBottom: Point,
-        qRight: Point,
-    };
+    correction?: { a: number, b: number }[];
+    coordinates: Lines;
+}
+
+export interface Lines {
+    top: Line;
+    left: Line;
+    bottom: Line;
+    right: Line;
+    [name: string]: Line;
 }
 
 export interface Point {
     x: number;
     y: number;
 }
+
+export interface Line {
+    from: Point;
+    to: Point;
+    q: Point;
+    [name: string]: Point;
+}
+
 
 export interface Size {
     width: number;

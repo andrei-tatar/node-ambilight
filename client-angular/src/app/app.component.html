@@ -3,18 +3,19 @@
     <img src="api/frame">
     <svg *ngIf="size$|async as size" [style.width.px]="size.width" [style.height.px]="size.height">
       <ng-container *ngIf="coordinates$|async as coords">
-        <path [attr.d]="coords.topLeft|pathData:coords.topRight:coords.qTop|async"></path>
-        <path [attr.d]="coords.bottomLeft|pathData:coords.bottomRight:coords.qBottom|async"></path>
-        <path [attr.d]="coords.topLeft|pathData:coords.bottomLeft:coords.qLeft|async"></path>
-        <path [attr.d]="coords.topRight|pathData:coords.bottomRight:coords.qRight|async"></path>
-        <circle [point]="coords.topLeft"></circle>
-        <circle [point]="coords.topRight"></circle>
-        <circle [point]="coords.bottomLeft"></circle>
-        <circle [point]="coords.bottomRight"></circle>
-        <circle class="q" [point]="coords.qLeft"></circle>
-        <circle class="q" [point]="coords.qRight"></circle>
-        <circle class="q" [point]="coords.qTop"></circle>
-        <circle class="q" [point]="coords.qBottom"></circle>
+
+        <ng-container *ngTemplateOutlet="lineTemplate; context:{line:coords.top}"></ng-container>
+        <ng-container *ngTemplateOutlet="lineTemplate; context:{line:coords.left}"></ng-container>
+        <ng-container *ngTemplateOutlet="lineTemplate; context:{line:coords.bottom}"></ng-container>
+        <ng-container *ngTemplateOutlet="lineTemplate; context:{line:coords.right}"></ng-container>
+
+        <ng-template #lineTemplate let-line="line">
+          <path [attr.d]="line.from|pathData:line.to:line.q|async"></path>
+          <circle [point]="line.from"></circle>
+          <circle [point]="line.to"></circle>
+          <circle [point]="line.q" class="q"></circle>
+
+        </ng-template>
       </ng-container>
     </svg>
   </div>

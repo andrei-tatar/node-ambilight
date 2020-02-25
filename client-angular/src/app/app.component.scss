@@ -7,7 +7,7 @@ svg {
 
 circle {
   cursor: pointer;
-  r: 7;
+  r: 3;
   fill: lightblue;
   transition: r .2s, fill .2s;
 
@@ -17,7 +17,7 @@ circle {
 
   &.dragging,
   &:hover {
-    r: 15;
+    r: 8;
   }
 }
 

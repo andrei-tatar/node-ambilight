@@ -5,7 +5,7 @@ import { isEqual } from 'lodash';
 import WebSocket from 'ws';
 
 import { Observable, OperatorFunction, combineLatest } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, sample, withLatestFrom, scan } from 'rxjs/operators';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -69,7 +69,7 @@ const ws$ = new Observable<WebSocket>(observer => {
     return () => ws.close();
 });
 
-const subscription = combineLatest([frames$, info])
+const sampleData$ = combineLatest([frames$, info])
     .pipe(
         map(([frame, { samplePoints, size: { width, height }, buffer }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
@@ -83,6 +83,12 @@ const subscription = combineLatest([frames$, info])
             }
             return buffer;
         }),
+        publishReplay(1),
+        refCount(),
+    );
+
+const subscription = sampleData$
+    .pipe(
         scan((last, buf) => {
             if (last == null || last.length != buf.length) {
                 last = new Uint8Array(buf.length);
@@ -108,6 +114,19 @@ app.get('/frame', async (_req, res) => {
     const frame = await frames$.pipe(first()).toPromise();
     const buffer = await cv.imencodeAsync('.png', frame);
     res.type('png').end(buffer);
+});
+app.get('/samples', async (_req, res) => {
+    const samples = await sampleData$.pipe(first()).toPromise();
+    const clone = samples.slice(0);
+    const result = [];
+    for (let i = 0; i < clone.length / 3; i++) {
+        result.push({
+            r: samples[i * 3 + 0],
+            g: samples[i * 3 + 1],
+            b: samples[i * 3 + 2],
+        });
+    }
+    res.json(result);
 });
 app.get('/settings', async (_req, res) => {
     const config = await config$.pipe(first()).toPromise();

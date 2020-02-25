@@ -5,7 +5,7 @@ import { isEqual } from 'lodash';
 import WebSocket from 'ws';
 
 import { Observable, OperatorFunction, combineLatest } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, sample, withLatestFrom } from 'rxjs/operators';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, sample, withLatestFrom, scan } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -77,11 +77,24 @@ const subscription = combineLatest([frames$, info])
                 const x = Math.round(point.x / 100 * width);
                 const y = Math.round(point.y / 100 * height);
                 const color: Vec3 = frame.at(y, x) as any;
-                buffer[i * 3 + 0] = color.x * 255;
-                buffer[i * 3 + 1] = color.y * 255;
-                buffer[i * 3 + 2] = color.z * 255;
+                buffer[i * 3 + 0] = color.z;
+                buffer[i * 3 + 1] = color.y;
+                buffer[i * 3 + 2] = color.x;
             }
             return buffer;
+        }),
+        scan((last, buf) => {
+            if (last == null || last.length != buf.length) {
+                last = new Uint8Array(buf.length);
+                for (let i = 0; i < buf.length; i++) {
+                    last[i] = buf[i];
+                }
+            } else {
+                for (let i = 0; i < buf.length; i++) {
+                    last[i] = (last[i] + buf[i]) / 2;
+                }
+            }
+            return last;
         }),
         withLatestFrom(ws$),
         switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {

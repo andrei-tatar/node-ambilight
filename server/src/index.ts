@@ -56,9 +56,9 @@ const frames$ = getCaptureDevice()
     );
 
 const info = config$.pipe(
-    map(({ samplePoints, capture: { size } }) => ({ samplePoints, size })),
+    map(({ samplePoints, capture: { size }, correction }) => ({ samplePoints, size, correction })),
     distinctUntilChanged((a, b) => isEqual(a, b)),
-    map(({ samplePoints, size }) => ({ samplePoints, size, buffer: new Uint8Array(samplePoints.length * 3) }))
+    map(({ samplePoints, size, correction }) => ({ samplePoints, size, correction, buffer: new Uint8Array(samplePoints.length * 3) }))
 );
 
 const ws$ = new Observable<WebSocket>(observer => {
@@ -71,7 +71,7 @@ const ws$ = new Observable<WebSocket>(observer => {
 
 const sampleData$ = combineLatest([frames$, info])
     .pipe(
-        map(([frame, { samplePoints, size: { width, height }, buffer }]) => {
+        map(([frame, { samplePoints, size: { width, height }, buffer, correction }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
                 const point = samplePoints[i];
                 const x = Math.round(point.x / 100 * width);
@@ -81,11 +81,24 @@ const sampleData$ = combineLatest([frames$, info])
                 buffer[i * 3 + 1] = color.y;
                 buffer[i * 3 + 2] = color.x;
             }
+            if (correction?.length === buffer.length) {
+                for (let i = 0; i < correction.length; i++) {
+                    applyCorrection(buffer, i, correction[i]);
+                }
+            }
             return buffer;
         }),
         publishReplay(1),
         refCount(),
     );
+
+function applyCorrection(arr: Uint8Array, offset: number, correction: { a: number, b: number }) {
+    let value = arr[offset];
+    value = value * correction.a + correction.b;
+    if (value < 0) value = 0;
+    if (value > 255) value = 255;
+    arr[offset] = value;
+}
 
 const subscription = sampleData$
     .pipe(

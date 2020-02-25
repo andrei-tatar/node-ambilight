@@ -91,11 +91,12 @@ const sampleData$ = combineLatest([frames$, info])
         refCount(),
     );
 
-function applyCorrection(arr: Uint8Array, offset: number, correction: { a: number, b: number }) {
+function applyCorrection(arr: Uint8Array, offset: number, correction: { a: number, b: number, gamma: number }) {
     let value = arr[offset];
     value = value * correction.a + correction.b;
     if (value < 0) value = 0;
     if (value > 255) value = 255;
+    value = 255 * Math.pow(value / 255, 1 / correction.gamma);
     arr[offset] = value;
 }
 

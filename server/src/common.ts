@@ -10,7 +10,7 @@ export interface Settings {
         vertical: number;
     };
     samplePoints: Point[];
-    correction?: { a: number, b: number }[];
+    correction?: { a: number, b: number, gamma: number }[];
     coordinates: {
         top: Line;
         left: Line;

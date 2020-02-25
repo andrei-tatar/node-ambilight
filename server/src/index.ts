@@ -58,7 +58,13 @@ const frames$ = getCaptureDevice()
 const info = config$.pipe(
     map(({ samplePoints, capture: { size } }) => ({ samplePoints, size })),
     distinctUntilChanged((a, b) => isEqual(a, b)),
-    map(({ samplePoints, size }) => ({ samplePoints, size, buffer: new Uint8Array(samplePoints.length * 3) }))
+    map(({ samplePoints, size: { width, height } }) => ({
+        samplePoints: samplePoints.map(p => ({
+            x: Math.round(p.x / 100 * width),
+            y: Math.round(p.y / 100 * height),
+        })),
+        buffer: new Uint8Array(samplePoints.length * 3)
+    }))
 );
 
 const ws$ = new Observable<WebSocket>(observer => {
@@ -71,15 +77,22 @@ const ws$ = new Observable<WebSocket>(observer => {
 
 const sampleData$ = combineLatest([frames$, info])
     .pipe(
-        map(([frame, { samplePoints, size: { width, height }, buffer }]) => {
+        map(([frame, { samplePoints, buffer }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
-                const point = samplePoints[i];
-                const x = Math.round(point.x / 100 * width);
-                const y = Math.round(point.y / 100 * height);
-                const color: Vec3 = frame.at(y, x) as any;
-                buffer[i * 3 + 0] = color.z;
-                buffer[i * 3 + 1] = color.y;
-                buffer[i * 3 + 2] = color.x;
+                const { x, y } = samplePoints[i];
+
+                let xx = 0, yy = 0, zz = 0;
+                for (let dx = -1; dx <= 1; dx++)
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const color: Vec3 = frame.at(y + dy, x + dx) as any;
+                        xx += color.x;
+                        yy += color.y;
+                        zz += color.z;
+                    }
+
+                buffer[i * 3 + 0] = zz / 3;
+                buffer[i * 3 + 1] = yy / 3;
+                buffer[i * 3 + 2] = xx / 3;
             }
             return buffer;
         }),

@@ -42,14 +42,26 @@ async function readConfig(): Promise<Settings> {
             },
             samplePoints: [],
             coordinates: {
-                topLeft: { x: 25, y: 25 },
-                topRight: { x: 75, y: 25 },
-                bottomLeft: { x: 25, y: 75 },
-                bottomRight: { x: 75, y: 75 },
-                qTop: { x: 50, y: 25 },
-                qLeft: { x: 25, y: 50 },
-                qBottom: { x: 50, y: 75 },
-                qRight: { x: 75, y: 50 },
+                top: {
+                    from: { x: 25, y: 25 },
+                    to: { x: 75, y: 25 },
+                    q: { x: 50, y: 25 },
+                },
+                right: {
+                    from: { x: 75, y: 25 },
+                    to: { x: 75, y: 75 },
+                    q: { x: 75, y: 50 },
+                },
+                bottom: {
+                    from: { x: 75, y: 75 },
+                    to: { x: 25, y: 75 },
+                    q: { x: 50, y: 75 },
+                },
+                left: {
+                    from: { x: 25, y: 75 },
+                    to: { x: 25, y: 25 },
+                    q: { x: 25, y: 50 },
+                },
             },
         };
     }

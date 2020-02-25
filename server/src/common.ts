@@ -12,20 +12,22 @@ export interface Settings {
     samplePoints: Point[];
     correction?: { a: number, b: number }[];
     coordinates: {
-        topLeft: Point,
-        topRight: Point,
-        bottomLeft: Point,
-        bottomRight: Point,
-        qTop: Point,
-        qLeft: Point,
-        qBottom: Point,
-        qRight: Point,
+        top: Line;
+        left: Line;
+        bottom: Line;
+        right: Line;
     };
 }
 
 export interface Point {
     x: number;
     y: number;
+}
+
+export interface Line {
+    from: Point;
+    to: Point;
+    q: Point;
 }
 
 export interface Size {

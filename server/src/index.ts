@@ -104,6 +104,7 @@ const subscription = combineLatest([sampleData$, correction$])
     .pipe(
         map(([data, correction]) => {
             if (correction?.length === data.length) {
+                data = data.slice(0);
                 for (let i = 0; i < correction.length; i++) {
                     applyCorrection(data, i, correction[i]);
                 }

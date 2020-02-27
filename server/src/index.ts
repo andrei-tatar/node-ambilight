@@ -90,8 +90,7 @@ const tvOn$ = mqttSettings.pipe(
                 });
             });
 
-            client.on('message', function (topic, message) {
-                console.log(topic, message);
+            client.on('message', function (_topic, message) {
                 observer.next(message.toString() === 'on');
             });
 

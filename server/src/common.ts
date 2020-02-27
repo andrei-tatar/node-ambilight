@@ -1,5 +1,9 @@
 
 export interface Settings {
+    mqtt?: {
+        user: string;
+        password: string;
+    };
     capture: {
         size: Size;
         fps: number;

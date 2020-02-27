@@ -1,11 +1,12 @@
-import cv, { Vec3, Vec } from 'opencv4nodejs';
+import cv, { Vec3 } from 'opencv4nodejs';
 import express from 'express';
 import bodyParser from 'body-parser';
 import { isEqual } from 'lodash';
 import WebSocket from 'ws';
+import mqtt from 'mqtt';
 
-import { Observable, OperatorFunction, combineLatest } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan, tap, retryWhen, delay } from 'rxjs/operators';
+import { Observable, OperatorFunction, combineLatest, EMPTY } from 'rxjs';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, scan, retryWhen, delay, startWith } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -75,7 +76,32 @@ const ws$ = new Observable<WebSocket>(observer => {
     return () => ws.close();
 });
 
-const sampleData$ = combineLatest([frames$, info])
+const mqttSettings = config$.pipe(map(c => c.mqtt), distinctUntilChanged((a, b) => isEqual(a, b)));
+const tvOn$ = mqttSettings.pipe(
+    switchMap(mqttSettings =>
+        new Observable<boolean>(observer => {
+            var client = mqtt.connect('mqtt://192.168.1.3', {
+                username: mqttSettings?.user,
+                password: mqttSettings?.password,
+            })
+            client.on('connect', function () {
+                client.subscribe('ambilight/power', function (err) {
+                    if (err) observer.error(err);
+                });
+            });
+
+            client.on('message', function (topic, message) {
+                console.log(topic, message);
+                observer.next(message.toString() === 'on');
+            });
+
+            return () => client.end();
+        })),
+    startWith(false),
+);
+
+
+const sample$ = combineLatest([frames$, info])
     .pipe(
         map(([frame, { samplePoints, buffer }]) => {
             for (let i = 0; i < samplePoints.length; i++) {
@@ -124,7 +150,7 @@ const GAMMA_LUT = [
     215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255
 ];
 
-const subscription = combineLatest([sampleData$, correction$])
+const sampleCorrected$ = combineLatest([sample$, correction$])
     .pipe(
         map(([data, correction]) => {
             if (correction?.length === data.length) {
@@ -151,13 +177,22 @@ const subscription = combineLatest([sampleData$, correction$])
                 clone[i] = GAMMA_LUT[clone[i]];
             }
             return clone;
-        }),
-        withLatestFrom(ws$),
-        switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {
-            if (err) reject(err); else resolve();
-        }))),
-        retryWhen(err$ => err$.pipe(delay(5000))),
-    ).subscribe();
+        })
+    );
+
+const subscription = tvOn$.pipe(
+    switchMap(on => on
+        ? combineLatest(sampleCorrected$, ws$)
+            .pipe(
+                switchMap(([data, ws]) =>
+                    new Promise((resolve, reject) => ws.send(data, err => {
+                        if (err) reject(err); else resolve();
+                    }))
+                ),
+            )
+        : EMPTY),
+    retryWhen(err$ => err$.pipe(delay(5000))),
+).subscribe();
 
 const app = express();
 app.use(bodyParser.json());
@@ -167,7 +202,7 @@ app.get('/frame', async (_req, res) => {
     res.type('png').end(buffer);
 });
 app.get('/samples', async (_req, res) => {
-    const samples = await sampleData$.pipe(first()).toPromise();
+    const samples = await sample$.pipe(first()).toPromise();
     const array = Array.from(samples);
     res.json(array);
 });

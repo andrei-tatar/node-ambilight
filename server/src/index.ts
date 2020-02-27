@@ -5,7 +5,7 @@ import { isEqual } from 'lodash';
 import WebSocket from 'ws';
 
 import { Observable, OperatorFunction, combineLatest } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan, tap } from 'rxjs/operators';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, withLatestFrom, scan, tap, retryWhen, delay } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -96,7 +96,7 @@ function applyCorrection(arr: Uint8Array, offset: number, correction: { a: numbe
     value = value * correction.a + correction.b;
     if (value < 0) value = 0;
     if (value > 255) value = 255;
-    value = 255 * Math.pow(value / 255, 1 / correction.gamma);
+    // value = 255 * Math.pow(value / 255, 1 / correction.gamma);
     arr[offset] = value;
 }
 
@@ -135,15 +135,15 @@ const subscription = combineLatest([sampleData$, correction$])
             }
             return data;
         }),
-        scan((acc, frame) => {
-            if (acc.length != frame.length) {
-                acc = frame.slice();
+        scan((prev, current) => {
+            if (prev.length != current.length) {
+                prev = current.slice();
             } else {
-                for (let i = 0; i < frame.length; i++) {
-                    acc[i] = acc[i] * 0.4 + frame[i] * 0.6;
+                for (let i = 0; i < current.length; i++) {
+                    prev[i] = prev[i] * 0.7 + current[i] * 0.3;
                 }
             }
-            return acc;
+            return prev;
         }, new Uint8Array()),
         map(frame => {
             const clone = frame.slice(0);
@@ -156,6 +156,7 @@ const subscription = combineLatest([sampleData$, correction$])
         switchMap(([data, ws]) => new Promise((resolve, reject) => ws.send(data, err => {
             if (err) reject(err); else resolve();
         }))),
+        retryWhen(err$ => err$.pipe(delay(5000))),
     ).subscribe();
 
 const app = express();

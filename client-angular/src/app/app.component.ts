@@ -32,10 +32,10 @@ export class AppComponent implements OnInit {
     const samples = 40;
     const blacks: number[][] = [];
     const whites: number[][] = [];
+    const grays: number[][] = [];
 
     this.calibrating = true;
     this.color = 'black';
-
 
     await this.delay(2000);
     for (let i = 0; i < samples; i++) {
@@ -54,6 +54,16 @@ export class AppComponent implements OnInit {
       await this.delay(50);
     }
 
+    this.color = '#7f7f7f';
+    this.cdr.markForCheck();
+    await this.delay(2000);
+
+    for (let i = 0; i < samples; i++) {
+      const sample = await this.service.deviceSamples().toPromise();
+      grays.push(sample);
+      await this.delay(50);
+    }
+
     this.calibrating = false
     this.cdr.markForCheck();
 
@@ -62,13 +72,18 @@ export class AppComponent implements OnInit {
     for (let i = 0; i < sampleSize; i++) {
       const black = blacks.reduce((l, sample) => l + sample[i], 0) / samples;
       const white = whites.reduce((l, sample) => l + sample[i], 0) / samples;
+      const gray = grays.reduce((l, sample) => l + sample[i], 0) / samples;
       const range = Math.max(1, white - black);
-      correctionFactors.push({
-        a: 255 / range,
-        b: -black,
-      });
+      const a = 255 / range;
+      const b = -black;
+      const rangedGray = a * gray + b;
+      const gamma = 1 / (Math.log(127 / 255) / Math.log(rangedGray / 255));
+      correctionFactors.push({ a, b, gamma });
+      console.log(black, white, gray, rangedGray, gamma);
     }
     await this.service.updateCorrection(correctionFactors).toPromise();
+
+    (window as any).correctionFactors = correctionFactors;
   }
 
   private delay(time: number) {

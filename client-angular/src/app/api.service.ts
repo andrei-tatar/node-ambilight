@@ -41,7 +41,7 @@ export class ApiService {
         return this.http.get<number[]>('api/samples');
     }
 
-    updateCorrection(correction: { a: number, b: number }[]) {
+    updateCorrection(correction: { a: number, b: number, gamma: number }[]) {
         return this.http.patch('api/settings', {
             correction,
         });

@@ -6,7 +6,7 @@ import WebSocket from 'ws';
 import mqtt from 'mqtt';
 
 import { Observable, OperatorFunction, combineLatest, EMPTY } from 'rxjs';
-import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, scan, retryWhen, delay, startWith } from 'rxjs/operators';
+import { map, publishReplay, refCount, first, switchMap, distinctUntilChanged, scan, retryWhen, delay, startWith, tap } from 'rxjs/operators';
 import { config$, updateConfig } from './config';
 
 function getCaptureDevice(): Observable<cv.VideoCapture> {
@@ -190,7 +190,10 @@ const subscription = tvOn$.pipe(
                 ),
             )
         : EMPTY),
-    retryWhen(err$ => err$.pipe(delay(5000))),
+    retryWhen(err$ => err$.pipe(
+        tap(err => console.warn(err)),
+        delay(5000)
+    )),
 ).subscribe();
 
 const app = express();

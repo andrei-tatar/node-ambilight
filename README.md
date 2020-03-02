@@ -1,8 +1,6 @@
 # node-ambilight
 
 [![npm](https://img.shields.io/npm/v/@andrei-tatar/node-webcam-ambilight.svg?style=flat-square&logo=npm)](https://www.npmjs.com/package/@andrei-tatar/node-webcam-ambilight)
-[![dependencies Status](https://img.shields.io/david/andrei-tatar/@andrei-tatar/node-webcam-ambilight.svg?style=flat-square)](https://david-dm.org/andrei-tatar/@andrei-tatar/node-webcam-ambilight)
-[![devDependencies Status](https://img.shields.io/david/dev/andrei-tatar/@andrei-tatar/node-webcam-ambilight.svg?style=flat-square)](https://david-dm.org/andrei-tatar/@andrei-tatar/node-webcam-ambilight?type=dev)
 [![downloads](https://img.shields.io/npm/dm/@andrei-tatar/node-webcam-ambilight.svg?style=flat-square)](https://www.npmjs.com/package/@andrei-tatar/node-webcam-ambilight)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg?style=flat-square&logo=paypal)](https://paypal.me/andreitatar)
 

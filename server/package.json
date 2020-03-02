@@ -1,15 +1,16 @@
 {
-  "name": "node-webcam-ambilight",
-  "version": "1.0.0",
+  "name": "@andrei-tatar/node-webcam-ambilight",
+  "version": "1.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "npm run lint && rm -rf ./dist && tsc",
     "lint": "tslint -p .",
+    "pub": "npm run build && npm publish --access public",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Andrei-Calin Tatar",
   "license": "ISC",
   "devDependencies": {
     "@types/express": "^4.17.2",

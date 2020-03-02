@@ -1,8 +1,8 @@
 {
   "name": "@andrei-tatar/node-webcam-ambilight",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "npm run lint && rm -rf ./dist && tsc",
@@ -12,6 +12,16 @@
   },
   "author": "Andrei-Calin Tatar",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrei-tatar/node-ambilight.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andrei-tatar/node-ambilight/issues"
+  },
+  "bin": {
+    "node-ambilight": "bin/node-ambilight"
+  },
   "devDependencies": {
     "@types/express": "^4.17.2",
     "@types/lodash": "^4.14.149",

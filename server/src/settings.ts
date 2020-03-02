@@ -3,7 +3,7 @@ import { isEqual } from 'lodash';
 import { homedir } from 'os';
 import { join } from 'path';
 import { Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, map, publish, refCount, startWith, switchMap } from 'rxjs/operators';
+import { distinctUntilChanged, map, publishReplay, refCount, startWith, switchMap } from 'rxjs/operators';
 import { promisify } from 'util';
 
 import { Settings } from './common';
@@ -16,7 +16,7 @@ const reload$ = new Subject();
 export const config$ = reload$.pipe(
     startWith(null),
     switchMap(_ => readConfig()),
-    publish(),
+    publishReplay(1),
     refCount(),
 );
 

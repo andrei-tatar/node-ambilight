@@ -1,9 +1,10 @@
 import { readFile, writeFile } from 'fs';
-import { promisify } from 'util';
-import { join } from 'path';
+import { isEqual } from 'lodash';
 import { homedir } from 'os';
-import { Subject } from 'rxjs';
-import { startWith, switchMap, shareReplay } from 'rxjs/operators';
+import { join } from 'path';
+import { Observable, Subject } from 'rxjs';
+import { distinctUntilChanged, map, publish, refCount, startWith, switchMap } from 'rxjs/operators';
+import { promisify } from 'util';
 
 import { Settings } from './common';
 
@@ -15,8 +16,16 @@ const reload$ = new Subject();
 export const config$ = reload$.pipe(
     startWith(null),
     switchMap(_ => readConfig()),
-    shareReplay(1),
+    publish(),
+    refCount(),
 );
+
+export function configMap<T>(select: (config: Settings) => T): Observable<T> {
+    return config$.pipe(
+        map(select),
+        distinctUntilChanged((a, b) => isEqual(a, b)),
+    );
+}
 
 export async function updateConfig(updater: (config: Settings) => Settings): Promise<void> {
     let config = await readConfig();
@@ -63,6 +72,7 @@ async function readConfig(): Promise<Settings> {
                     q: { x: 25, y: 50 },
                 },
             },
+            blendRatio: .7,
         };
     }
 }

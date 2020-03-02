@@ -1,28 +1,32 @@
 {
-  "name": "node-webcam-ambilight-server",
+  "name": "node-webcam-ambilight",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
+    "build": "npm run lint && rm -rf ./dist && tsc",
+    "lint": "tslint -p .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/express": "^4.17.2",
+    "@types/lodash": "^4.14.149",
     "@types/ws": "^7.2.1",
     "ts-node": "^8.6.2",
+    "tslint": "^6.0.0",
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "@types/lodash": "^4.14.149",
     "body-parser": "^1.19.0",
     "express": "^4.17.1",
     "lodash": "^4.17.15",
     "mqtt": "^3.0.0",
     "opencv4nodejs": "^5.5.0",
     "rxjs": "^6.5.4",
+    "tslib": "^1.11.0",
     "ws": "^7.2.1"
   }
 }

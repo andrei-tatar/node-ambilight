@@ -1,8 +1,10 @@
-
 export interface Settings {
     mqtt?: {
         user: string;
         password: string;
+        endpoint: string;
+        topic: string;
+        onvalue: string;
     };
     capture: {
         size: Size;
@@ -13,13 +15,18 @@ export interface Settings {
         horizontal: number;
         vertical: number;
     };
-    samplePoints: Point[];
-    correction?: { a: number, b: number, gamma: number }[];
     coordinates: {
         top: Line;
         left: Line;
         bottom: Line;
         right: Line;
+    };
+    samplePoints: Point[];
+    correction?: { a: number, b: number, gamma: number }[];
+    blendRatio: number;
+    updater?: {
+        type: 'websocket',
+        endpoint: string;
     };
 }
 

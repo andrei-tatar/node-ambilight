@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, combineLatest } from 'rxjs';
-import { shareReplay, map, first, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
+import { shareReplay, map, switchMap, skip, debounceTime } from 'rxjs/operators';
 
 @Injectable()
 export class ApiService {
@@ -35,6 +35,42 @@ export class ApiService {
     );
 
     constructor(private http: HttpClient) {
+        combineLatest([this.coordinates$, this.settings$]).pipe(
+            switchMap(([coords, { capture: { size }, resolution }]) => {
+                const entries: Observable<Partial<Lines>>[] = [];
+                for (const [key, value] of Object.entries(coords)) {
+                    const update = combineLatest([value.from, value.to, value.q]).pipe(
+                        map(([from, to, q]) => {
+                            return {
+                                [key]: {
+                                    from: this.convertPoint(from, size),
+                                    to: this.convertPoint(to, size),
+                                    q: this.convertPoint(q, size),
+                                }
+                            };
+                        }));
+                    entries.push(update);
+                }
+
+                const coordinates$ = combineLatest(entries)
+                    .pipe(
+                        skip(1),
+                        debounceTime(3000),
+                        map(updates => updates.reduce((last, c) => ({ ...last, ...c }), {})),
+                        map((coordinates: any) => {
+                            const patch: Partial<Settings> = {
+                                coordinates,
+                                samplePoints: this.getSamplePoints(coordinates, resolution),
+                            };
+                            return patch;
+                        })
+                    );
+
+                return coordinates$;
+            }),
+
+            switchMap(coordinates => this.http.patch('api/settings', coordinates)),
+        ).subscribe();
     }
 
     deviceSamples() {
@@ -45,29 +81,6 @@ export class ApiService {
         return this.http.patch('api/settings', {
             correction,
         });
-    }
-
-    save() {
-        return combineLatest([this.coordinates$, this.settings$]).pipe(
-            first(),
-            map(([coords, { capture: { size }, resolution }]) => {
-                const coordinates: Lines = {} as any;
-                for (const [key, value] of Object.entries(coords)) {
-                    coordinates[key as any as keyof Lines] = {
-                        from: this.convertPoint(value.from.value, size),
-                        to: this.convertPoint(value.to.value, size),
-                        q: this.convertPoint(value.q.value, size),
-                    }
-                }
-                const patch: Partial<Settings> = {
-                    coordinates,
-                    samplePoints: this.getSamplePoints(coordinates, resolution),
-                };
-
-                return patch;
-            }),
-            switchMap(coordinates => this.http.patch('api/settings', coordinates)),
-        );
     }
 
     private convertPoint(x: Point, size: Size): Point {

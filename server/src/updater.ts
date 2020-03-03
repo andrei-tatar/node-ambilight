@@ -13,6 +13,7 @@ export const updater$ = config$.pipe(
     switchMap(config => {
         switch (config?.type) {
             case 'websocket':
+                console.log('using ws updater');
                 return new Observable<Updater>(observer => {
                     const ws = new WebSocket(config.endpoint);
                     ws.on('open', () => observer.next({

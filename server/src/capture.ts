@@ -18,6 +18,8 @@ function getCaptureDevice(): Observable<cv.VideoCapture> {
             capture.set(cv.CAP_PROP_FPS, fps);
             observer.next(capture);
 
+            console.info(`capture start ${size.width}x${size.height} at ${fps}`);
+
             return () => capture.release();
         })),
     );

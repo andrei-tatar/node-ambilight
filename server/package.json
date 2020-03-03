@@ -1,11 +1,11 @@
 {
   "name": "@andrei-tatar/node-webcam-ambilight",
-  "version": "1.0.3",
+  "version": "1.0.8",
   "description": "",
   "main": "./dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
-    "build": "npm run lint && rm -rf ./dist && tsc",
+    "build": "npm run lint && rm -rf ./dist && tsc && cd ../client-angular && npm run build",
     "lint": "tslint -p .",
     "pub": "npm run build && npm publish --access public",
     "test": "echo \"Error: no test specified\" && exit 1"

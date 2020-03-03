@@ -28,6 +28,7 @@ export interface Settings {
         type: 'websocket',
         endpoint: string;
     };
+    interpolate?: boolean;
 }
 
 export interface Point {

@@ -2,8 +2,8 @@ import { readFile, writeFile } from 'fs';
 import { isEqual } from 'lodash';
 import { homedir } from 'os';
 import { join } from 'path';
-import { Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, map, publishReplay, refCount, startWith, switchMap } from 'rxjs/operators';
+import { concat, defer, Observable, Subject } from 'rxjs';
+import { distinctUntilChanged, map, publishReplay, refCount } from 'rxjs/operators';
 import { promisify } from 'util';
 
 import { Settings } from './common';
@@ -11,11 +11,12 @@ import { Settings } from './common';
 const readFileAsync = promisify(readFile);
 const writeFileAsync = promisify(writeFile);
 const configFile = join(homedir(), '.node-ambilight');
-const reload$ = new Subject();
+const configSaved$ = new Subject<Settings>();
 
-export const config$ = reload$.pipe(
-    startWith(null),
-    switchMap(_ => readConfig()),
+export const config$ = concat(
+    defer(() => readConfig()),
+    configSaved$,
+).pipe(
     publishReplay(1),
     refCount(),
 );
@@ -30,8 +31,8 @@ export function configMap<T>(select: (config: Settings) => T): Observable<T> {
 export async function updateConfig(updater: (config: Settings) => Settings): Promise<void> {
     let config = await readConfig();
     config = updater(config) ?? config;
-    writeConfig(config);
-    reload$.next();
+    await writeConfig(config);
+    configSaved$.next(config);
 }
 
 async function readConfig(): Promise<Settings> {

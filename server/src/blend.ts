@@ -1,9 +1,11 @@
 import { MonoTypeOperatorFunction } from 'rxjs';
-import { scan, withLatestFrom } from 'rxjs/operators';
+import { scan, tap, withLatestFrom } from 'rxjs/operators';
 
 import { configMap } from './settings';
 
-const ratio$ = configMap(c => c.blendRatio ?? .7);
+const ratio$ = configMap(c => c.blendRatio ?? .7).pipe(
+    tap(r => console.info(`blending ratio ${r}`))
+);
 
 export function blendSample(): MonoTypeOperatorFunction<Uint8Array> {
     return sample$ => sample$.pipe(

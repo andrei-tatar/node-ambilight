@@ -24,45 +24,14 @@ export class AppComponent implements OnInit {
   ngOnInit() {
   }
 
-  save() {
-    this.service.save().toPromise();
-  }
-
   async calibrate() {
-    const samples = 40;
-    const blacks: number[][] = [];
-    const whites: number[][] = [];
-    const grays: number[][] = [];
+    const samples = 10;
 
     this.calibrating = true;
-    this.color = 'black';
 
-    await this.delay(2000);
-    for (let i = 0; i < samples; i++) {
-      const sample = await this.service.deviceSamples().toPromise();
-      blacks.push(sample);
-      await this.delay(50);
-    }
-
-    this.color = 'white';
-    this.cdr.markForCheck();
-    await this.delay(2000);
-
-    for (let i = 0; i < samples; i++) {
-      const sample = await this.service.deviceSamples().toPromise();
-      whites.push(sample);
-      await this.delay(50);
-    }
-
-    this.color = '#7f7f7f';
-    this.cdr.markForCheck();
-    await this.delay(2000);
-
-    for (let i = 0; i < samples; i++) {
-      const sample = await this.service.deviceSamples().toPromise();
-      grays.push(sample);
-      await this.delay(50);
-    }
+    const blacks = await this.getSamples('black', samples);
+    const whites = await this.getSamples('white', samples);
+    const grays = await this.getSamples('#7f7f7f', samples);
 
     this.calibrating = false
     this.cdr.markForCheck();
@@ -77,13 +46,24 @@ export class AppComponent implements OnInit {
       const a = 255 / range;
       const b = -black;
       const rangedGray = a * gray + b;
-      const gamma = 1 / (Math.log(127 / 255) / Math.log(rangedGray / 255));
+      const gamma = Math.log(127 / 255) / Math.log(rangedGray / 255);
       correctionFactors.push({ a, b, gamma });
-      console.log(black, white, gray, rangedGray, gamma);
     }
     await this.service.updateCorrection(correctionFactors).toPromise();
 
     (window as any).correctionFactors = correctionFactors;
+  }
+
+  private async getSamples(color: string, count: number) {
+    this.color = color;
+    this.cdr.markForCheck();
+    await this.delay(100);
+    const samples = [];
+    for (let i = 0; i < count; i++) {
+      const sample = await this.service.deviceSamples().toPromise();
+      samples.push(sample);
+    }
+    return samples;
   }
 
   private delay(time: number) {

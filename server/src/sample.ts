@@ -31,9 +31,9 @@ export function sampleFrame(): OperatorFunction<cv.Mat, Uint8Array> {
                     const { x: currentx, y: currenty, z: currentz } = frame.at(current.y, current.x) as any as Vec3;
                     const { x: nextx, y: nexty, z: nextz } = frame.at(next.y, next.x) as any as Vec3;
 
-                    buffer[i / 2 * 3 + 0] = prevz * .25 + currentz * .5 + nextz * .25;
-                    buffer[i / 2 * 3 + 1] = prevy * .25 + currenty * .5 + nexty * .25;
-                    buffer[i / 2 * 3 + 2] = prevx * .25 + currentx * .5 + nextx * .25;
+                    buffer[i * 3 + 0] = prevz * .25 + currentz * .5 + nextz * .25;
+                    buffer[i * 3 + 1] = prevy * .25 + currenty * .5 + nexty * .25;
+                    buffer[i * 3 + 2] = prevx * .25 + currentx * .5 + nextx * .25;
                 }
             } else {
                 for (let i = 0; i < samplePoints.length; i++) {

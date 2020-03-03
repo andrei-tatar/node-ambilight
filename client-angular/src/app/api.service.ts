@@ -5,16 +5,15 @@ import { shareReplay, map, switchMap, skip, debounceTime } from 'rxjs/operators'
 
 @Injectable()
 export class ApiService {
-
     private settings$ = this.http
         .get<Settings>('api/settings')
         .pipe(shareReplay(1));
 
     coordinates$ = this.settings$.pipe(
         map(settings => {
-            const subjects: WatchLine<Lines> = {} as any;
+            const subjects: WatchLine<Coordinates> = {} as any;
             for (const [key, line] of Object.entries(settings.coordinates)) {
-                const lineName: keyof Lines = key as any;
+                const lineName: keyof Coordinates = key as any;
                 subjects[lineName] = {} as any;
 
                 for (const [pointName, point] of Object.entries(line)) {
@@ -37,7 +36,7 @@ export class ApiService {
     constructor(private http: HttpClient) {
         combineLatest([this.coordinates$, this.settings$]).pipe(
             switchMap(([coords, { capture: { size }, resolution }]) => {
-                const entries: Observable<Partial<Lines>>[] = [];
+                const entries: Observable<Partial<Coordinates>>[] = [];
                 for (const [key, value] of Object.entries(coords)) {
                     const update = combineLatest([value.from, value.to, value.q]).pipe(
                         map(([from, to, q]) => {
@@ -74,7 +73,7 @@ export class ApiService {
     }
 
     deviceSamples() {
-        return this.http.get<number[]>('api/samples');
+        return this.http.get<number[]>(`api/samples?i=${new Date().getTime()}`);
     }
 
     updateCorrection(correction: { a: number, b: number, gamma: number }[]) {
@@ -90,7 +89,7 @@ export class ApiService {
         };
     }
 
-    private getSamplePoints(coordinates: Lines, resolution: { horizontal: number, vertical: number }) {
+    private getSamplePoints(coordinates: Coordinates, resolution: { horizontal: number, vertical: number }) {
         const samplePoints: Point[] = [];
 
         samplePoints.push(...this.getPathPoints(coordinates.top, resolution.horizontal));
@@ -117,6 +116,8 @@ export class ApiService {
     }
 }
 
+type Coordinates = { [name: string]: Line };
+
 type WatchLine<T> = {
     [P in keyof T]: SubjectProperties<T[P]>;
 }
@@ -126,6 +127,13 @@ type SubjectProperties<T> = {
 };
 
 export interface Settings {
+    mqtt?: {
+        user: string;
+        password: string;
+        endpoint: string;
+        topic: string;
+        onvalue: string;
+    };
     capture: {
         size: Size;
         fps: number;
@@ -135,17 +143,20 @@ export interface Settings {
         horizontal: number;
         vertical: number;
     };
+    coordinates: {
+        top: Line;
+        left: Line;
+        bottom: Line;
+        right: Line;
+    };
     samplePoints: Point[];
-    correction?: { a: number, b: number }[];
-    coordinates: Lines;
-}
-
-export interface Lines {
-    top: Line;
-    left: Line;
-    bottom: Line;
-    right: Line;
-    [name: string]: Line;
+    correction?: { a: number, b: number, gamma: number }[];
+    blendRatio: number;
+    updater?: {
+        type: 'websocket',
+        endpoint: string;
+    };
+    interpolate?: boolean;
 }
 
 export interface Point {
@@ -157,9 +168,7 @@ export interface Line {
     from: Point;
     to: Point;
     q: Point;
-    [name: string]: Point;
 }
-
 
 export interface Size {
     width: number;

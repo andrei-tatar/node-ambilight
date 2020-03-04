@@ -9,6 +9,8 @@ export class ApiService {
         .get<Settings>('api/settings')
         .pipe(shareReplay(1));
 
+    gamma$ = this.settings$.pipe(map(s => s.gamma));
+
     coordinates$ = this.settings$.pipe(
         map(settings => {
             const subjects: WatchLine<Coordinates> = {} as any;
@@ -79,6 +81,12 @@ export class ApiService {
     updateCorrection(correction: { a: number, b: number }[]) {
         return this.http.patch('api/settings', {
             correction,
+        });
+    }
+
+    updateGamma(gamma: [number, number, number]) {
+        return this.http.patch('api/settings', {
+            gamma,
         });
     }
 

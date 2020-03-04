@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ApiService } from './api.service';
+import { first } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -11,6 +12,7 @@ export class AppComponent {
 
   coordinates$ = this.service.coordinates$;
   size$ = this.service.size$;
+  gamma$ = this.service.gamma$;
 
   calibrating = false;
   color?: string;
@@ -19,6 +21,12 @@ export class AppComponent {
     private service: ApiService,
     private cdr: ChangeDetectorRef,
   ) {
+  }
+
+  async updateGamma(index: number, value: number) {
+    const gamma = await this.gamma$.pipe(first()).toPromise();
+    gamma[index] = value;
+    await this.service.updateGamma(gamma).toPromise();
   }
 
   async calibrate() {

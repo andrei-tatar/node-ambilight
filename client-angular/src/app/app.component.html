@@ -21,6 +21,12 @@
   </div>
 
   <button (click)="calibrate()">Calibrate</button>
+  <ng-container *ngIf="gamma$|async as gamma">
+    <label>Gamma</label>
+    <input type="range" min="1" max="5" step=".1" [value]="gamma[0]" (change)="updateGamma(0, $event.target.value)" />
+    <input type="range" min="1" max="5" step=".1" [value]="gamma[1]" (change)="updateGamma(1, $event.target.value)" />
+    <input type="range" min="1" max="5" step=".1" [value]="gamma[2]" (change)="updateGamma(2, $event.target.value)" />
+  </ng-container>
 </div>
 
 <div *ngIf="calibrating" [style.background-color]="color" class="calibration-canvas"></div>

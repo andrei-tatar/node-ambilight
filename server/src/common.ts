@@ -22,13 +22,14 @@ export interface Settings {
         right: Line;
     };
     samplePoints: Point[];
-    correction?: { a: number, b: number, gamma: number }[];
+    correction?: { a: number, b: number }[];
     blendRatio: number;
     updater?: {
         type: 'websocket',
         endpoint: string;
     };
     interpolate?: boolean;
+    gamma: [number, number, number];
 }
 
 export interface Point {

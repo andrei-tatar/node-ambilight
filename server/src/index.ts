@@ -18,8 +18,8 @@ const sample$ = frames$.pipe(
 );
 const fps$ = new BehaviorSubject<number>(0);
 const sampleCorrected$ = sample$.pipe(
-    correctRange(),
     blendSample(),
+    correctRange(),
 );
 const subscription = tvOn$.pipe(
     switchMap(on => on

@@ -42,6 +42,7 @@ async function readConfig(): Promise<Settings> {
         return JSON.parse(json);
     } catch (err) {
         return {
+            gamma: [2.2, 2.2, 2.2],
             capture: {
                 size: { width: 640, height: 480 },
                 fps: 30,

@@ -22,6 +22,8 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 
 CRGB leds_plus_safety_pixel[NUM_LEDS + 1];
 CRGB *const leds(leds_plus_safety_pixel + 1);
+uint32_t lastUpdate;
+bool updated = false;
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
@@ -35,9 +37,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     break;
 
   case WStype_CONNECTED:
-  {
-    IPAddress ip = webSocket.remoteIP(num);
-
     if (num != 0)
     {
       webSocket.disconnect(num);
@@ -46,20 +45,15 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     {
       FastLED.clear(true);
     }
-  }
-  break;
-
-  case WStype_BIN:
-    for (uint16_t i = 0; i < length; i += 3)
-    {
-      leds[i / 3].setRGB(payload[i], payload[(i + 1)], payload[(i + 2)]);
-    }
-    FastLED.show();
     break;
 
-  default:
-    FastLED.clear();
-    leds[0] = CRGB::Red;
+  case WStype_BIN:
+    lastUpdate = millis();
+    updated = true;
+    for (uint8_t i = 0; i < NUM_LEDS; i++)
+    {
+      leds[i].setRGB(*payload++, *payload++, *payload++);
+    }
     FastLED.show();
     break;
   }
@@ -70,11 +64,11 @@ void setup()
   FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   FastLED.setBrightness(255);
 
-  FastLED.clear();
-  leds[0] = CRGB::Yellow;
-  FastLED.show();
+  if (strlen(ssid))
+  {
+    WiFi.begin(ssid, password);
+  }
 
-  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
     leds[0] = CRGB::Orange;
@@ -91,5 +85,10 @@ void setup()
 
 void loop()
 {
+  if (updated && millis() > lastUpdate + 1000)
+  {
+    updated = false;
+    FastLED.clear(true);
+  }
   webSocket.loop();
 }
